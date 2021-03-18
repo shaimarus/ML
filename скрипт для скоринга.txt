@@ -1,0 +1,264 @@
+--Сразу дадим гранты с AP_CRM_ABT в AP_CRM (возможно надо настроить через джобу)
+GRANT SELECT ON T_RS_CARD_ALL_SMS_score to AP_CRM;
+GRANT SELECT ON T_RS_PTB_CASH_CALL_score to AP_CRM;
+GRANT SELECT ON T_RS_PTB_CASH_SMS_score to AP_CRM;
+GRANT SELECT ON t_rs_pos_score  to AP_CRM;
+GRANT SELECT ON T_RS_debit_score  to AP_CRM;
+GRANT SELECT ON T_RS_CARD_ATTR_nPos2_score  to AP_CRM;
+GRANT SELECT ON T_RS_CARD_ATTR_Pos2_score  to AP_CRM;
+GRANT SELECT ON T_RS_NON_ELIG_CASH_score  to AP_CRM;
+GRANT SELECT ON T_RS_NON_ELIG_CARD_score to AP_CRM;
+
+
+--Удаляем временные таблицы (в таблицах скоры за один последний месяц):
+TRUNCATE TABLE T_RS_CASH_ALL_SMS_score; --old model старая модель скорее уже неактуальная
+TRUNCATE TABLE T_RS_CARD_ALL_SMS_score; --old model пока действующая модель, но уже скоро заменится новой моделью рисков (Матей считает, Елдар внедряет)
+
+TRUNCATE TABLE T_RS_PTB_CASH_CALL_score; --new model новые скоры посчитанные Матеем
+TRUNCATE TABLE T_RS_PTB_CASH_SMS_score; --new model новые скоры посчитанные Рустемом по методике рисков
+
+TRUNCATE TABLE t_rs_pos_score; --old model для маркетплейса/сегментации считаем POS скоры (то что клиент возьмет pos кредит), непонятно нужны ли сейчас эти скоры?! но пока на всякий считаем
+TRUNCATE TABLE T_RS_debit_score; --old model для бизнеса по дебеткам которая занимается/сегментации считаем DEBIT скоры (то что клиент DEBIT карточкой сделает больше 10 транзакции), непонятно нужны ли сейчас эти скоры?! но пока на всякий считаем
+
+TRUNCATE TABLE T_RS_CARD_ATTR_nPos2_score; --old model для Ернара Туктибаева атришн скоры по NON POS карточкам, возможно пересчитаете заново, скоры считаются на SKP_CREDIT_CASE    
+TRUNCATE TABLE T_RS_CARD_ATTR_Pos2_score; --old modelдля Ернара Туктибаева атришн скоры по POS карточкам, возможно пересчитаете заново, скоры считаются на SKP_CREDIT_CASE 
+
+TRUNCATE TABLE T_RS_NON_ELIG_CASH_score;--old model Для Букейхановой non elig cash скоры, возможно пересчитаете заново.
+TRUNCATE TABLE T_RS_NON_ELIG_CARD_score;--old model Для Букейхановой non elig card скоры, возможно пересчитаете заново.
+--Удаляем временную таблицу (датамарт за последний месяц, датамарт ДЛЯ СТАРЫХ МОДЕЛЕЙ):
+TRUNCATE TABLE T_RS_ABT_DATA_CASH_ALLSMS_M;
+
+
+--Заполним врменную таблицу дамарата новой датой(НЕ ЗАБЫВАЕМ ПОМЕНЯТЬ ДАТУ) ДЛЯ СТАРЫХ МОДЕЛЕЙ (для новых моделей этот датамарт не используется):
+
+INSERT /*+ APPEND*/
+INTO T_RS_ABT_DATA_CASH_ALLSMS_M
+with s1 as
+(
+select * from AP_CRM_ABT.T_ABT_CASH_DATAMART
+where month_=date'2020-11-01'
+),
+s2 as
+(
+select p.*
+       ,case when rownum<215000 then 1
+             when rownum<215000*2 then 2
+             when rownum<215000*3 then 3
+             when rownum<215000*4 then 4
+             when rownum<215000*5 then 5
+             when rownum<215000*6 then 6
+             when rownum<215000*7 then 7
+             when rownum<215000*8 then 8
+             when rownum<215000*9 then 9
+             when rownum<215000*10 then 10
+             when rownum<215000*11 then 11
+             when rownum<215000*12 then 12
+             when rownum<215000*13 then 13
+             when rownum<215000*14 then 14
+             when rownum<215000*15 then 15
+             when rownum<215000*16 then 16
+             when rownum<215000*17 then 17
+             when rownum<215000*18 then 18
+             when rownum<215000*19 then 19               
+             when rownum<6000000 then 20 end as n_tile            
+from s1 p
+)
+select * from s2;
+commit;
+
+Далее заходим на чеховский сервер и в общей папке shared_crm_folder запускаем скрипты.
+PTB_CASH_CALL: scoring_all_clients_by_cash_call.ipynb в скрипте НЕ ЗАБЫВАЕМ МЕНЯТЬ ДАТУ. В итоге получим заполненную таблицу AP_CRM_ABT.T_RS_PTB_CASH_CALL_score с новыми скорами
+PTB_CASH_SMS: scoring_all_clients_by_cash_sms.ipynb в скрипте НЕ ЗАБЫВАЕМ МЕНЯТЬ ДАТУ. В итоге получим заполненную таблицу AP_CRM_ABT.T_RS_PTB_CASH_SMS_score с новыми скорами
+PTB_CARD_OLD: PTB_CARD_OLD.ipynb запускаем скрипт как есть. В итоге получим заполненную таблицу AP_CRM_ABT.T_RS_CARD_ALL_SMS_score с новыми скорами
+PTB_POS: PTB_POS.ipynb запускаем скрипт как есть. В итоге получим заполненную таблицу AP_CRM_ABT.T_RS_POS_score с новыми скорами
+PTB_DEBIT: PTB_DEBIT.ipynb запускаем скрипт как есть. В итоге получим заполненную таблицу AP_CRM_ABT.T_RS_DEBIT_score с новыми скорами
+NON_ELIG: NON_CASH.ipynb запускаем скрипт как есть. В итоге получим заполненную таблицу AP_CRM_ABT.T_RS_NON_ELIG_CASH_score с новыми скорами
+NON_ELIG: NON_CARD.ipynb запускаем скрипт как есть. В итоге получим заполненную таблицу AP_CRM_ABT.T_RS_NON_ELIG_CARD_score с новыми скорами
+Перед запуском скриптов по атришну необходимо посчитать скрикпт (пакет в ap_crm_abt):
+call PKG_ABT_CARD2_DATAMART.P_MAIN(date'2020-11-01') --НЕ ЗАБЫВАЕМ МЕНЯТЬ ДАТУ (по хорошему надо сделать ввиде джобы)
+ATTR: ATTR_POS.ipynb в скрипте НЕ ЗАБЫВАЕМ МЕНЯТЬ ДАТУ. В итоге получим заполненную таблицу AP_CRM_ABT.T_RS_CARD_ATTR_Pos2_score с новыми скорами
+ATTR: ATTR_nPOS.ipynb в скрипте НЕ ЗАБЫВАЕМ МЕНЯТЬ ДАТУ. В итоге получим заполненную таблицу AP_CRM_ABT.T_RS_CARD_ATTR_nPos2_score с новыми скорами
+
+Чекаем полученные скоры по всем таблицам на то что посчитали по всем клиентам:
+
+
+SELECT count(distinct skp_client) ,count(1)  FROM AP_CRM_ABT.T_RS_PTB_CASH_CALL_score;
+SELECT count(distinct skp_client) ,count(1)  FROM AP_CRM_ABT.T_RS_PTB_CASH_SMS_score;
+SELECT count(distinct skp_client) ,count(1)  FROM AP_CRM_ABT.T_RS_CARD_ALL_SMS_score;
+SELECT count(distinct skp_client) ,count(1)  FROM AP_CRM_ABT.T_RS_POS_score;
+SELECT count(distinct skp_client) ,count(1)  FROM AP_CRM_ABT.t_rs_debit_score;
+SELECT count(distinct skp_client) ,count(1)  FROM AP_CRM_ABT.T_RS_NON_ELIG_CASH_score;
+SELECT count(distinct skp_client) ,count(1)  FROM AP_CRM_ABT.T_RS_NON_ELIG_CARD_score;
+SELECT count(distinct skp_credit_case) ,count(1)  FROM AP_CRM_ABT.T_RS_CARD_ATTR_nPos2_score;
+SELECT count(distinct skp_credit_case) ,count(1)  FROM AP_CRM_ABT.T_RS_CARD_ATTR_Pos2_score;
+
+Далее полученные скоры загружаем в таблицы где копятся скоры помесячно:
+
+---CASH CALL-------------схема AP_CRM_ABT------------------------------------
+insert /*+ append*/ into ap_crm_abt.t_rs_ptb_cash_call_monthly t
+(skp_client, month_, score, score_cl,sk_date_score, sk_month_valid_from, score_group)
+Select r.skp_client
+      ,trunc(sysdate, 'mm')
+      ,r.score
+      ,r.score_cl
+      ,r.sk_date_score
+      ,r.month_
+      ,ntile(10) over(order by r.score desc) as score_group
+  From AP_CRM_ABT.T_RS_PTB_CASH_CALL_score r
+  left join ap_crm_abt.t_rs_ptb_cash_call_monthly ptb
+    on r.sk_date_score = ptb.sk_date_score
+  where ptb.month_ is null
+;
+commit;
+
+---CASH SMS--------------схема AP_CRM_ABT-----------------------------------
+insert /*+ append*/ into ap_crm_abt.t_rs_ptb_cash_sms_monthly t
+(skp_client, month_, score, score_cl,sk_date_score, sk_month_valid_from, score_group)
+Select r.skp_client
+      ,trunc(sysdate, 'mm')
+      ,r.score
+      ,r.score_cl
+      ,r.sk_date_score
+      ,r.month_
+      ,ntile(10) over(order by r.score desc) as score_group
+  From AP_CRM_ABT.T_RS_PTB_CASH_SMS_score r
+  left join ap_crm_abt.t_rs_ptb_cash_sms_monthly ptb
+    on r.sk_date_score = ptb.sk_date_score
+  where ptb.month_ is null
+;
+commit;
+
+---OLD CARD--------схема AP_CRM---------------------------------
+insert /*+ append*/ into t_ya_ptb_card_monthly t
+(skp_client, month_, score, score_cl,sk_date_score, sk_month_valid_from, score_group)
+Select r.skp_client
+      ,trunc(sysdate, 'mm')
+      ,r.score
+      ,r.score_cl
+      ,r.sk_date_score
+      ,r.month_
+      ,ntile(10) over(order by r.score desc) as score_group
+      -- score_cl has 0 or 1 values 
+  From AP_CRM_ABT.T_RS_CARD_ALL_SMS_score r
+  left join t_ya_ptb_card_monthly ptb
+    on r.sk_date_score = ptb.sk_date_score
+  where ptb.month_ is null
+;
+commit;
+
+---POS-------------------схема AP_CRM---------------------------
+insert /*+ append*/ into t_ya_ptb_pos_monthly t
+(skp_client, month_, score, score_cl,sk_date_score, sk_month_valid_from, score_group)
+Select r.skp_client
+      ,trunc(sysdate, 'mm')
+      ,r.score
+      ,0 score_cl
+      ,r.sk_date_score
+      ,r.month_
+      ,ntile(10) over(order by r.score desc) as score_group
+      -- score_cl has 0 or 1 values 
+  From ap_crm_abt.t_rs_pos_score r
+;
+commit;
+---DEBIT-----------------схема AP_CRM------------------------------
+insert /*+ append*/ into t_ya_ptb_debit_monthly t
+(skp_client, month_, score, score_cl,sk_date_score, sk_month_valid_from, score_group)
+Select r.skp_client
+      ,trunc(sysdate, 'mm')
+      ,r.score
+      ,0 score_cl
+      ,r.sk_date_score
+      ,r.month_
+      ,ntile(10) over(order by r.score desc) as score_group
+      -- score_cl has 0 or 1 values 
+  From ap_crm_abt.t_rs_debit_score r
+;
+commit;
+---ATTR------------------схема AP_CRM_ABT-------------------------
+insert into /*+ append*/ T_RS_CARD_ATTR_Pos2_month
+SELECT * FROM T_RS_CARD_ATTR_Pos2_score;
+commit;
+
+insert into /*+ append*/ T_RS_CARD_ATTR_nPos2_month
+SELECT * FROM T_RS_CARD_ATTR_nPos2_score;
+commit;
+---NON_ELIG---------------схема AP_CRM_ABT----------------------------
+insert into /*+ append*/ t_rs_non_elig_cash_month
+SELECT * FROM T_RS_NON_ELIG_CAsh_score
+commit;
+
+insert into /*+ append*/ t_rs_non_elig_card_month
+SELECT * FROM T_RS_NON_ELIG_CArd_score
+commit;
+
+
+
+
+Полученные ежемесячные скоры можно доп прочекать через средние/мин/макс, чтобы динамика примерно была такая как в предыдущих месяцах:
+SELECT month_,count(1),avg(score),min(score),max(score)  FROM table 
+GROUP BY month_
+
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------
+ВНИМАНИЕ! НИЖЕ ОСНОВНОЙ СКРИПТ КОТОРЫЙ ЗАЛИВАЕТ В ТАБЛИЦУ ap_crm.t_ptb_card_cash_actual скоры для SAS
+-----------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------
+--Cхема AP_CRM---------------------------------------------------------------------------------------------------------------------
+
+TRUNCATE TABLE t_ptb_card_cash_actual; --чистка скоров с предыдущего месяца
+
+insert /*+ append*/into t_ptb_card_cash_actual -- to SAS
+
+select /*+ use_hash(t1 t2 t3 t4 t5 t6 t7)*/
+      t1.skp_client,
+      t1.month_ as sk_month_valid_from,
+      t1.sk_date_score as dt_score_cash,
+      t2.sk_date_score as dt_score_card,
+      t1.score as score_cash,
+      t1.score_cl as score_cl_cash,
+      t2.score as score_card,
+      t2.score_cl as score_cl_card,
+      t3.score as score_pos,
+      t3.sk_date_score as dt_score_pos,
+      
+      t4.score as score_debit,
+      t4.sk_date_score as dt_score_debit,
+      
+      t5.score as score_cash_sms,
+      t6.score as SCORE_NON_ELIG_CASH,
+      t7.score as SCORE_NON_ELIG_CARD,
+      null Score1,
+      null Score2
+      
+from AP_CRM_ABT.T_RS_PTB_CASH_CALL_score  t1 
+join AP_CRM_ABT.T_RS_CARD_ALL_SMS_score t2 on t1.skp_client = t2.skp_client
+join ap_crm_abt.T_RS_POS_score t3            on t1.skp_client = t3.skp_client
+join ap_crm_abt.t_rs_debit_score t4            on t1.skp_client = t4.skp_client
+join ap_crm_abt.T_RS_PTB_CASH_SMS_score t5            on t1.skp_client = t5.skp_client
+join ap_crm_abt.T_RS_NON_ELIG_CASH_score t6            on t1.skp_client = t6.skp_client
+join ap_crm_abt.T_RS_NON_ELIG_CARD_score  t7            on t1.skp_client = t7.skp_client
+
+;
+commit;
+
+
+/*
+SCORE_CASH -- скоры по CASH CALL для TLM 
+SCORE_CL_CASH -- тоже самое что CASH CALL (скоры дублируются)
+SCORE_CARD -- на данный момент скоры по старой модели, после того как посчитаются новые необходимо заливать в это поле
+SCORE_CL_CARD --необходимо чтобы это поле было таким же как SCORE_CARD когда появятся новые скоры, т.к. вроде SAS использует именно эти скоры для карты. 
+SCORE_POS --скоры по POS
+SCORE_DEBIT --скоры по DEBIT
+SCORE_CASH_SMS --скоры по CASH SMS для смсок (на 01.11.2020 они новые скоры, только начнут использоваться)
+SCORE_NON_ELIG_CASH --cash скоры по non eligiblity clients 
+SCORE_NON_ELIG_CARD --card скоры по non eligiblity clients
+SCORE1 - на будущее пустое поле
+SCORE2 - на будущее пустое поле
+DT_* - когда именно был произведен расчет скоров
+*/
+

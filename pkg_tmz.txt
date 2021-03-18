@@ -1,0 +1,626 @@
+CREATE OR REPLACE PACKAGE BODY PKG_MZ_HINTS IS
+
+    -------------------------------------
+
+    --  Set application info
+    PROCEDURE pAppInfo(acAction VARCHAR2,
+                       acModule VARCHAR2 DEFAULT AC_MODULE) IS
+    BEGIN
+        DBMS_APPLICATION_INFO.Set_Module(module_name => acModule,
+                                         action_name => acAction);
+    END;
+    PROCEDURE pAppAction(acAction VARCHAR2) IS
+    BEGIN
+        DBMS_APPLICATION_INFO.Set_Action(Action_Name => acAction);
+    END;
+    --
+    PROCEDURE pAppClient(acClientInfo VARCHAR2) IS
+    BEGIN
+        DBMS_APPLICATION_INFO.Set_Client_Info(client_info => acClientInfo);
+    END;
+    ------------------------
+    PROCEDURE pStats(acTable    GST_ORA_NAME,
+                     acOwner    GST_ORA_NAME DEFAULT User,
+                     anPercents NUMBER DEFAULT 0.000001,
+                     anDegree   NUMBER DEFAULT 4,
+                     anPartName VARCHAR2 DEFAULT null) IS
+    BEGIN
+        DBMS_STATS.Gather_Table_Stats(OwnName          => acOwner,
+                                      TabName          => acTable,
+                                      Estimate_Percent => anPercents,
+                                      degree           => anDegree,
+                                      partname         => anPartName);
+        pAppInfo('pStats',
+                 acTable || ' - ' || To_Char(SysDate, GCV_FMT_DATE));
+    END;
+    ------------------------
+    PROCEDURE pStatsPartTab(acTable       GST_ORA_NAME,
+                            acOwner       GST_ORA_NAME DEFAULT User,
+                            anPercents    NUMBER DEFAULT 0.02,
+                            anDegree      NUMBER DEFAULT 4,
+                            anCntPartLast NUMBER DEFAULT 3,
+                            anGranularity VARCHAR2 DEFAULT 'PARTITION') IS
+    BEGIN
+      -- Runs before Table Part Stat Calculation
+      COMMIT;
+      --
+      FOR I IN (SELECT *
+                  FROM (SELECT P.PARTITION_NAME,
+                               RANK() OVER(PARTITION BY TABLE_NAME ORDER BY PARTITION_POSITION DESC) RN,
+                               P.TABLE_OWNER,
+                               P.TABLE_NAME
+                          FROM ALL_TAB_PARTITIONS P
+                         WHERE TABLE_NAME = acTable
+                           AND TABLE_OWNER = acOwner)
+                 WHERE RN <= anCntPartLast) LOOP
+
+        pAppAction(I.PARTITION_NAME);
+        DBMS_STATS.gather_table_stats(ownname          => I.TABLE_OWNER,
+                                      tabname          => I.TABLE_NAME,
+                                      partname         => I.PARTITION_NAME,
+                                      granularity      => anGranularity,
+                                      degree           => anDegree,
+                                      estimate_percent => anPercents,
+                                      cascade          => TRUE,
+                                      no_invalidate    => FALSE);
+      END LOOP;
+      pConsole(rPad('pStats', 10) || rPad(' ', GCI_LEN_ROWS) || CASE WHEN
+               GD_STEP_START Is Not Null THEN
+               ' ' || fcGetSeconds(GD_STEP_START) END);
+      pAppInfo('pStats',
+               acTable || ' - ' || To_Char(SysDate, GCV_FMT_DATE));
+    END;
+
+    --  Dynamic execution
+    PROCEDURE pExec(acExecute VARCHAR2) IS
+    BEGIN
+        EXECUTE IMMEDIATE acExecute;
+    END;
+
+
+    PROCEDURE pMerge(V_JOIN_KEY IN VARCHAR2, V_TABLE_NAME IN VARCHAR2) IS
+
+      MERGE_TXT GST_MAX_PLS_STR;
+
+    BEGIN
+      MERGE_TXT := 'MERGE /*+ APPEND*/ INTO ' || V_TABLE_NAME || ' T USING ' ||
+                   CONCAT(V_TABLE_NAME, '_PREP S');
+      MERGE_TXT := MERGE_TXT || ' ON (T.' || V_JOIN_KEY || ' = S.' ||
+                   V_JOIN_KEY || ')';
+      MERGE_TXT := MERGE_TXT || ' WHEN MATCHED THEN UPDATE SET ';
+
+      -- UPDATE CONDITION
+      FOR I IN (SELECT 'T.' || T.COLUMN_NAME || ' = S.' || T.COLUMN_NAME || ', ' AS CONDITION_UPDATE
+                  FROM USER_TAB_COLUMNS t
+                 where T.TABLE_NAME = V_TABLE_NAME
+                 order by column_id) loop
+        MERGE_TXT := MERGE_TXT || I.CONDITION_UPDATE;
+      end loop;
+      -- WHERE CONDITION
+      FOR I IN (SELECT DECODE(T.COLUMN_ID, 1, 'WHERE ', 'OR ') || 'nvl(T.' ||
+                       T.column_name || ', ' ||
+                       decode(REPLACE(t.DATA_TYPE, 'NVARCHAR2', 'VARCHAR2'),
+                              'VARCHAR2',
+                              '''1''',
+                              'NUMBER',
+                              '0',
+                              'DATE',
+                              'DATE''1900-01-01''') || ') != nvl(S.' ||
+                       T.column_name || ', ' ||
+                       decode(REPLACE(t.DATA_TYPE, 'NVARCHAR2', 'VARCHAR2'),
+                              'VARCHAR2',
+                              '''1''',
+                              'NUMBER',
+                              '0',
+                              'DATE',
+                              'DATE''1900-01-01''') || ')' AS CONDITION_WHERE
+                  FROM USER_TAB_COLUMNS t
+                 where T.TABLE_NAME = V_TABLE_NAME
+                 order by column_id) loop
+        MERGE_TXT := MERGE_TXT || I.CONDITION_WHERE;
+      end loop;
+      -- INSERT CONDITION
+      FOR I IN (SELECT DECODE(T.COLUMN_ID,
+                              1,
+                              'WHEN NOT MATCHED THEN INSERT ( T.',
+                              'T.') || T.column_name || CASE
+                         WHEN DENSE_RANK()
+                          OVER(PARTITION BY V_TABLE_NAME ORDER BY COLUMN_ID DESC) = 1 THEN
+                          ') '
+                         ELSE
+                          ', '
+                       END AS CONDITION_INSERT
+                  FROM USER_TAB_COLUMNS T
+                 WHERE T.TABLE_NAME = V_TABLE_NAME
+                 ORDER BY COLUMN_ID) loop
+        MERGE_TXT := MERGE_TXT || I.CONDITION_INSERT;
+      end loop;
+
+      -- INSERT VALUES
+      FOR I IN (SELECT DECODE(T.COLUMN_ID, 1, 'VALUES ( S.', 'S.') ||
+                       T.column_name || CASE
+                         WHEN DENSE_RANK()
+                          OVER(PARTITION BY V_TABLE_NAME ORDER BY COLUMN_ID DESC) = 1 THEN
+                          '); '
+                         ELSE
+                          ', '
+                       END AS CONDITION_INSERT
+                  FROM USER_TAB_COLUMNS T
+                 WHERE T.TABLE_NAME = V_TABLE_NAME
+                 ORDER BY COLUMN_ID) loop
+        MERGE_TXT := MERGE_TXT || I.CONDITION_INSERT;
+      end loop;
+      DBMS_OUTPUT.put_line(MERGE_TXT);
+    end;
+
+    PROCEDURE pCompileObjects IS
+    BEGIN
+      FOR I IN (SELECT O.OBJECT_TYPE,
+                       O.OBJECT_NAME,
+                       'ALTER ' || CONCAT(O.OBJECT_TYPE, ' ') || O.OBJECT_NAME ||
+                       ' COMPILE' AS MSG_TXT,
+                       COUNT(1) OVER(PARTITION BY USER) AS CNT_OBJ,
+                       DENSE_RANK() OVER(PARTITION BY 1 ORDER BY OBJECT_TYPE, OBJECT_NAME) AS RN
+                  FROM USER_objects o
+                 where o.status = 'INVALID'
+                   and object_type in ('PROCEDURE',
+                                       'MATERIALIZED VIEW',
+                                       'PACKAGE',
+                                       'FUNCTION',
+                                       'VIEW')
+                 ORDER BY OBJECT_TYPE, OBJECT_NAME) LOOP
+        BEGIN
+          pAppInfo(acAction => I.OBJECT_NAME, acModule => I.RN || ' from ' || I.CNT_OBJ);
+          EXECUTE IMMEDIATE I.MSG_TXT;
+          dbms_output.put_line(RPAD(I.MSG_TXT, 70, ' ') ||
+                               LPAD(SQLERRM, 44, ' '));
+        EXCEPTION
+          WHEN OTHERS THEN
+          pAppInfo(acAction => I.OBJECT_NAME, acModule => I.RN || ' from ' || I.CNT_OBJ);
+            dbms_output.put_line(RPAD(I.MSG_TXT, 70, ' ') ||
+                                 LPAD(SQLERRM, 44, ' '));
+        END;
+      END LOOP;
+    END;
+
+
+    --  Console/Log output
+    PROCEDURE pConsole(acConsole VARCHAR2) IS
+    BEGIN
+        DBMS_OUTPUT.Put_Line(To_Char(SysDate, GCV_FMT_DATE) || ' ' || CASE WHEN
+                             AC_ACTION Is Not Null THEN
+                             rPad(AC_ACTION, GCI_LEN_ACTION)
+                             END || ' ' || acConsole);
+    END;
+    ----------------------
+
+    PROCEDURE pTruncate(acTable GST_ORA_NAME,
+                        acOwner GST_ORA_NAME DEFAULT User) IS
+        vTSQL varchar2(4000);
+    BEGIN
+        vTSQL := 'truncate table ' || acOwner || '.' || acTable; -- || ' drop storage';
+        pAppInfo('pTruncate',
+                 acTable || ' - ' || To_Char(SysDate, GCV_FMT_DATE));
+        pExec(acExecute => vTSQL);
+    END;
+    --  Modify session
+    PROCEDURE pAlterSession(anDegree INTEGER DEFAULT 1) IS
+        TYPE TAB_COMMANDS IS TABLE OF GST_MAX_SQL_STR;
+        lcExecute  GST_MAX_PLS_STR;
+        ltCommands TAB_COMMANDS;
+        lbiIndex   BINARY_INTEGER;
+    BEGIN
+        AC_ACTION := '--------Parallel---------';
+        pConsole('Paralallel option ' || anDegree || ' Start at: ' ||
+                 To_Char(SysDate, 'YYYY-MM-DD HH24:Mi'));
+        ltCommands := TAB_COMMANDS('ALTER SESSION ENABLE PARALLEL DML',
+                                   'ALTER SESSION ENABLE PARALLEL QUERY',
+                                   'ALTER SESSION FORCE PARALLEL DML PARALLEL ' ||
+                                   anDegree,
+                                   'ALTER SESSION FORCE PARALLEL QUERY PARALLEL ' ||
+                                   anDegree,
+                                   'ALTER SESSION SET WORKAREA_SIZE_POLICY = MANUAL',
+                                   'ALTER SESSION SET SORT_AREA_SIZE = 1073741824',
+                                   'ALTER SESSION SET HASH_AREA_SIZE = 1073741824');
+        lbiIndex   := ltCommands.First;
+        WHILE lbiIndex Is Not Null LOOP
+            lcExecute := ltCommands(lbiIndex);
+            pExec(lcExecute);
+            lbiIndex := ltCommands.Next(lbiIndex);
+        END LOOP;
+    END pAlterSession;
+
+    --  Calculate/formate elapsed time
+    FUNCTION fnGetSeconds(adStartTime DATE) RETURN NUMBER IS
+    BEGIN
+        RETURN 86400 *(SysDate - adStartTime);
+    END;
+    --
+    FUNCTION fcGetSeconds(adStartTime DATE) RETURN VARCHAR2 IS
+    BEGIN
+        RETURN To_Char(fnGetSeconds(adStartTime), '999,990') || '[secs]';
+    END;
+    ------------------------
+    PROCEDURE pIndex(indexName  GST_ORA_NAME,
+                     acOwner    GST_ORA_NAME DEFAULT User,
+                     set_Usable  number default 1) IS
+    BEGIN
+      AC_ACTION := null;
+          --PEXEC('ALTER SESSION SET SKIP_UNUSABLE_INDEXES = ''TRUE''');
+      CASE
+        WHEN set_Usable = 0 THEN
+          pExec('ALTER INDEX ' || acOwner || '.' || indexName || ' UNUSABLE');
+          pAppInfo('pIndex_turn_OFF',
+                   indexName || ' - ' || To_Char(SysDate, GCV_FMT_DATE));
+          pConsole(rPad(indexName, GCI_LEN_ACTION) || rPad('Turn OFF', 10));
+
+        WHEN set_Usable = 1 THEN
+          pExec('ALTER INDEX ' || acOwner || '.' || indexName || ' REBUILD ONLINE PARALLEL 4');
+          pAppInfo('pIndex_turn_ON',
+                   indexName || ' - ' || To_Char(SysDate, GCV_FMT_DATE));
+          pConsole(rPad(indexName, GCI_LEN_ACTION) || rPad('Turn ON', 10));
+      END CASE;
+
+    END;
+    
+    -- GRANT
+    PROCEDURE pGrant(TableName  GST_ORA_NAME,
+                     Grant_To   GST_ORA_NAME   DEFAULT 'CRM',
+                     Grant_Type GST_ORA_NAME   DEFAULT 'S') IS
+    BEGIN
+      --FOR I IN 1 .. Grant_To.COUNT LOOP
+        
+        IF Grant_Type = 'S' THEN
+        pExec('GRANT SELECT ON ' || TableName || ' TO ' || Grant_To );
+        ELSIF Grant_Type = 'A' THEN
+        pExec('GRANT ALL ON ' || TableName || ' TO ' || Grant_To );
+        END IF;
+      
+      --END LOOP;
+
+    END;
+    --  Action
+    --
+    --  Step Start
+    PROCEDURE pStepStart(anStepNo INTEGER DEFAULT NULL,
+                         acAction VARCHAR2 DEFAULT NULL,
+                         acModule VARCHAR2 DEFAULT Null) IS
+    BEGIN
+
+        IF acModule Is Not Null THEN
+            GI_STEP_No      := 0;
+            AC_MODULE       := acModule;
+            AC_ACTION       := 'INIT';
+            GD_ACTION_START := SysDate;
+
+            ap_public.core_log_pkg.pInit(acLogModule  => USER,
+                                         acLogProcess => AC_MODULE);
+            pAppInfo(acAction || ' ' || 'Start:' ||
+                     To_Char(GD_ACTION_START, GCV_FMT_DATE),
+                     AC_MODULE);
+            pConsole('*** START');
+        END IF;
+
+        IF anStepNo Is Not Null THEN
+            GI_STEP_No := anStepNo;
+            AC_ACTION     := acAction;
+            GD_STEP_START := SysDate;
+
+            ap_public.core_log_pkg.pStart(acLogInfo => acAction);
+            pAppInfo(acAction || ' ' ||
+                     To_Char(GD_ACTION_START, GCV_FMT_DATE),
+                     AC_MODULE);
+            /*pAppClient(acClientInfo => 'STEP ' || To_Char(anStepNo, FMT_STEP) || ' ' ||
+            'Start:' ||
+            To_Char(GD_STEP_START, GCV_FMT_DATE));*/
+        END IF;
+    END;
+    --  Step End
+    PROCEDURE pStepEnd(anRowsResult INTEGER DEFAULT Null,
+                       acTable      VARCHAR2 DEFAULT Null,
+                       adStart      DATE DEFAULT Null, --------
+                       isFinish     NUMBER DEFAULT 0,
+                       calcStats    NUMBER DEFAULT 1) IS
+    BEGIN
+
+        IF acTable is not null then
+            pConsole(rPad(CASE WHEN adStart Is Null THEN
+                          'Step ' || To_Char(GI_STEP_No, GCV_FMT_STEP) ELSE
+                          '*** END' END,
+                          10) ||
+                     rPad(Nvl(CASE WHEN anRowsResult Is Not Null THEN
+                              ' ' || To_Char(anRowsResult, GCV_FMT_ROWS) ||
+                              ' rows' END,
+                              ' '),
+                          GCI_LEN_ROWS) || CASE WHEN
+                     GD_STEP_START Is Not Null Or adStart Is Not Null THEN
+                     ' ' || fcGetSeconds(Nvl(adStart, GD_STEP_START)) END);
+
+            /*IF anRowsResult Is Not Null THEN
+            COMMIT;
+            */
+            IF calcStats = 1 THEN
+                COMMIT;
+                GD_STEP_START := sysdate;
+                pStats(acTable);
+                pConsole(rPad('pStats', 10) || rPad(' ', GCI_LEN_ROWS) || CASE WHEN
+                         GD_STEP_START Is Not Null THEN
+                         ' ' || fcGetSeconds(GD_STEP_START) END);
+            END IF;
+            --END IF;
+        END IF;
+
+        IF isFinish = 1 THEN
+            AC_ACTION := '-------------------------';
+            ap_public.core_log_pkg.pFinish;
+            pConsole(rPad('*** END', 10) || rPad(' ', GCI_LEN_ROWS) || CASE WHEN
+                     GD_ACTION_START Is Not Null Or adStart Is Not Null THEN
+                     ' ' || fcGetSeconds(Nvl(adStart, GD_ACTION_START)) END);
+        else
+            ap_public.core_log_pkg.pEnd(anDmlRows   => anRowsResult,
+                                        acLogResult => 'End ' || acTable);
+        END IF;
+    END;
+    --  Step Error
+    PROCEDURE pStepErr(fnEmailSend number default 0,
+                       AcModule    varchar2 default null,
+                       pMailPerson varchar2 default EMAIL_MZHUSSIYEV) is
+        PRAGMA AUTONOMOUS_TRANSACTION;
+    BEGIN
+        AC_MODULE := nvl(AcModule, AC_MODULE);
+
+        ap_public.core_log_pkg.pError;
+        pConsole('Err: ' || dbms_utility.format_error_stack || '~' ||
+                 dbms_utility.format_error_backtrace);
+
+        IF fnEmailSend = 1 THEN
+            ap_it.mail_pkg.send(P_FROM    => EMAIL_ADDRESS_OUT,
+                                P_TO      => /*EMAIL_MZHUSSIYEV || EMAIL_ATOBATAYEV ||*/ pMailPerson, 
+                                P_SUBJECT => 'ALERT! ORA-' ||
+                                             to_char(sqlcode()) ||
+                                             GCV_ENDFORM || GI_STEP_No || '. ' ||
+                                             AC_action,
+                                P_BODY    => sqlerrm() || GCV_ENDFORM ||
+                                             GCV_ENDFORM || 'Err: ' ||
+                                             dbms_utility.format_error_stack || '~' ||
+                                             dbms_utility.format_error_backtrace);
+        END IF;
+
+    END;
+    ----------------------
+    -- create GTT
+    PROCEDURE pGttCreate(p_tab_name VARCHAR2, p_sql IN VARCHAR2) IS
+        PRAGMA AUTONOMOUS_TRANSACTION;
+        e_tab_does_not_exist EXCEPTION;
+        PRAGMA EXCEPTION_INIT(e_tab_does_not_exist, -00942);
+        v_tmp_prefix VARCHAR2(8) := 'tbl_tmp_';
+    BEGIN
+        BEGIN
+            pexec('TRUNCATE TABLE ' || v_tmp_prefix || p_tab_name);
+            pexec('INSERT /*+APPEND*/ INTO ' || v_tmp_prefix || p_tab_name || ' ' ||
+                  p_sql);
+            COMMIT;
+        EXCEPTION
+            WHEN e_tab_does_not_exist THEN
+                --dbms_output.put_line('CREATE GLOBAL TEMPORARY TABLE tbl_tmp_' || p_tab_name ||
+                --         ' ON COMMIT PRESERVE ROWS AS ' || p_sql);
+                pexec('CREATE GLOBAL TEMPORARY TABLE tbl_tmp_' ||
+                      p_tab_name || ' ON COMMIT PRESERVE ROWS AS ' ||
+                      p_sql);
+        END;
+        pstats(v_tmp_prefix || p_tab_name);
+    END;
+    
+    
+    -- Mview refresh
+    PROCEDURE pJobKiller(owner GST_ORA_NAME default user) IS
+
+      Cursor CUR Is
+       Select JOB_NAME
+             ,ELAPSED_TIME
+             ,V.SQL_EXEC_START
+             ,V.LOGON_TIME
+             ,EXTRACT(HOUR FROM ELAPSED_TIME) AS ELAPSED_DUR_MIN
+             ,ROUND((Sysdate - LOGON_TIME) * 24 * 60, 1) As LOGON_DUR_MIN
+             ,ROUND((Sysdate - SQL_EXEC_START) * 24 * 60, 1) As SQL_DUR_MIN
+         From all_scheduler_running_jobs r
+         Join V$SESSION V
+           On R.session_id = V.SID
+        Where r.OWNER in (user, 'AP_CRM_ABT', 'AP_CRM')
+          AND R.ELAPSED_TIME > Interval '150' minute
+          And ROUND((Sysdate - SQL_EXEC_START) * 24 * 60, 1) > 150
+          And JOB_NAME Not In ('1' /*, 'J_MZ_SAS_DATAMART'*/);
+
+        RW CUR%Rowtype;
+        EMAIL_ADDRESS_OUT varchar2(100) := 'AP_CRM_DWH@Homecredit.kz;';
+        P_MESSAGE      PKG_MZ_HINTS.GST_MAX_PLS_STR;
+        HOURS          NUMBER;
+        MINUTES        NUMBER;
+        V_NAME         VARCHAR2(100);
+
+      Begin
+        P_MESSAGE := v_table_Start || GCV_ENDFORM || GCV_ENDLINE;
+        P_MESSAGE := P_MESSAGE || V_ROW_Start ||
+                     V_Column_Start || 'JOB_NAME     ' || V_Column_End ||
+                     V_Column_Start || 'RUNNING TIME ' || V_Column_End ||
+                     V_Column_Start || 'OWNER        ' || V_Column_End ||
+                     V_ROW_End || GCV_ENDFORM || GCV_ENDLINE;
+        Open CUR;
+        Loop
+          Fetch CUR Into RW;  Exit When CUR%Notfound;
+        begin
+          DBMS_SCHEDULER.stop_job(job_name => RW.JOB_NAME);
+          exception when others then
+          DBMS_OUTPUT.put_line('SOME ERROR' || Sqlcode || Sqlerrm);
+        end;
+          HOURS   := EXTRACT(HOUR FROM RW.ELAPSED_TIME);
+          MINUTES := EXTRACT(MINUTE FROM RW.ELAPSED_TIME);
+          IF    RW.JOB_NAME LIKE '%\_MZ\_%'  ESCAPE '\' THEN V_NAME := 'MZhussiyev@Homecredit.kz;';
+          ELSIF RW.JOB_NAME LIKE '%\_NA\_%'  ESCAPE '\' THEN V_NAME := 'IMurtazaliev@Homecredit.kz;NTolybayev@Homecredit.kz;';
+          ELSIF RW.JOB_NAME LIKE '%\_ATA\_%' ESCAPE '\' THEN V_NAME := 'ATobataev@Homecredit.kz;';
+          ELSIF RW.JOB_NAME LIKE '%\_ZB\_%'  ESCAPE '\' THEN V_NAME := 'ZBAZARBAYEVA@Homecredit.kz;BAbdumalikov@Homecredit.kz;';
+          ELSIF RW.JOB_NAME LIKE '%\_IM\_%'  ESCAPE '\' THEN V_NAME := 'IMurtazaliev@Homecredit.kz;';
+          ELSIF RW.JOB_NAME LIKE '%\_GY\_%'  ESCAPE '\' THEN V_NAME := 'GYelubayeva2@Homecredit.kz;';
+          ELSIF RW.JOB_NAME LIKE '%\_AA\_%'  ESCAPE '\' THEN V_NAME := 'AAptiyaliyev@Homecredit.kz;';
+          ELSIF RW.JOB_NAME LIKE '%\_BA\_%'  ESCAPE '\' THEN V_NAME := 'BAbdumalikov@Homecredit.kz;';
+          ELSIF RW.JOB_NAME LIKE '%\_ASH\_%' ESCAPE '\' THEN V_NAME := 'AShaibekova@Homecredit.kz;';
+          ELSIF RW.JOB_NAME LIKE '%\_MO\_%'  ESCAPE '\' THEN V_NAME := 'MOSSER@Homecredit.kz;';
+          ELSIF RW.JOB_NAME LIKE '%\_DDM\_%' ESCAPE '\' THEN V_NAME := 'DDAUIT@Homecredit.kz;';
+          END IF;
+
+          P_MESSAGE := P_MESSAGE || V_ROW_Start ||
+                       V_Column_Start || RW.JOB_NAME     || V_Column_End ||
+                       V_Column_Start || HOURS || 'h ' || MINUTES || 'min' || V_Column_End ||
+                       V_Column_Start || V_NAME || V_Column_End ||
+                       V_ROW_End || GCV_ENDFORM || GCV_ENDLINE;
+        End Loop;
+          Close CUR;
+          IF RW.ELAPSED_DUR_MIN IS NOT NULL THEN
+          ap_it.mail_pkg.send(P_FROM    => EMAIL_ADDRESS_OUT,
+                              P_TO      => EMAIL_MZHUSSIYEV,
+                              P_SUBJECT => 'JOB KILL STATISTICS',
+                              P_BODY    => 'Dear friends, your jobs were killed due to
+                              long running time (more than 2.5h). ' ||
+                              GCV_ENDFORM || 'Please optimise them' ||
+          GCV_ENDFORM || GCV_ENDFORM || P_MESSAGE);
+          end if;
+    END;
+    
+    -- Mview refresh
+    PROCEDURE pMviewRefresh(acMview GST_ORA_NAME) IS
+    BEGIN
+
+        pTruncate(acMview);
+        pExec('ALTER MATERIALIZED VIEW ' || acMview || ' compile');
+
+        pAppInfo('pMviewRef',
+                 acMview || ' - ' || To_Char(SysDate, GCV_FMT_DATE));
+        dbms_mview.refresh(acMview, 'c');
+        --pStats(acMview);
+
+    END;
+    -------------------------------------------
+    
+
+    -------------------------------------------
+    -- Mail script
+    PROCEDURE pMail(pSubjects   GT_MVIEW_NAME2,
+                    pProcess    varchar2 default 'REPORT RESULT',
+                    fSendMail   number default 0,
+                    pMailPerson varchar2 default EMAIL_MZHUSSIYEV) IS
+
+        STEP_NO        INTEGER := 0;
+        TOTAL_SEC      NUMBER := 0;
+
+        P_MESSAGE GST_MAX_PLS_STR;
+        type row_type is table of AP_PUBLIC.CORE_LOG_DETAIL%rowtype;
+        row_tt row_type;
+
+    begin
+
+        P_MESSAGE := v_table_Start || GCV_ENDFORM || GCV_ENDLINE;
+        
+        P_MESSAGE := P_MESSAGE      || 
+                     V_ROW_Start    ||                      
+                     V_Column_Start || '№'             || V_Column_End || 
+                     V_Column_Start || 'DATE'          || V_Column_End || 
+                     V_Column_Start || 'Process Name'  || V_Column_End || 
+                     V_Column_Start || 'Log name'      || V_Column_End || 
+                     V_Column_Start || 'Rows inserted' || V_Column_End || 
+                     V_Column_Start || 'Dtime Start'   || V_Column_End || 
+                     V_Column_Start || 'Dtime End'     || V_Column_End || 
+                     V_Column_Start || 'Run(sec)'      || V_Column_End ||                      
+                     V_ROW_End      || 
+                     GCV_ENDFORM    ||
+                     GCV_ENDLINE;
+                             
+        for i in 1 .. pSubjects.count loop
+
+            select * bulk collect
+              into row_tt
+              from AP_PUBLIC.CORE_LOG_DETAIL t
+             where t.aud_db_user = user
+               and UPPER(t.log_process) = UPPER(pSubjects(i))
+               and t.work_day = trunc(sysdate) 
+               and t.log_info not in ('Started', 'End')
+               and t.run_id = (select max(d.run_id)
+                                 from AP_PUBLIC.CORE_LOG_DETAIL d
+                                where d.aud_db_user = t.aud_db_user
+                                  and d.log_process = t.log_process
+                                  and d.work_day = t.work_day)
+             order by 1;
+
+            -- 2018.03.15 MZHUSSIYEV:
+            -- CHANGED TO ROW_TT.COUNT. BECAUSE THERE WAS AN ERROR, THE REASON IS UNKNOWN
+
+            for e in 1 .. ROW_TT.COUNT /*row_tt.first .. row_tt.last*/
+             loop
+                step_no   := step_no + 1;
+                TOTAL_SEC := TOTAL_SEC +
+                             (row_tt(e).finished - row_tt(e).started) * 24 * 60;
+
+            P_MESSAGE := P_MESSAGE      || 
+                         V_ROW_Start    ||                          
+                         V_Column_Start || step_no                                  || V_Column_End || 
+                         V_Column_Start || row_tt(e).work_day                       || V_Column_End || 
+                         V_Column_Start || row_tt(e).log_process                    || V_Column_End || 
+                         V_Column_Start || row_tt(e).log_info                       || V_Column_End || 
+                         V_Column_Start || row_tt(e).dml_rows                       || V_Column_End || 
+                         V_Column_Start || to_char(row_tt(e).started, 'hh24:mi:ss') || V_Column_End || 
+                         V_Column_Start || nvl(to_char(row_tt(e).err_msg),
+                                           to_char(row_tt(e).finished, 'hh24:mi:ss')) || V_Column_End || 
+                         V_Column_Start || trunc(((row_tt(e).finished - row_tt(e).started)*86400)) || V_Column_End ||                          
+                         V_ROW_End      || 
+                         GCV_ENDFORM    ||
+                         GCV_ENDLINE;
+                     
+                /*P_MESSAGE := P_MESSAGE || V_ROW_Start || V_Column_Start ||
+                             step_no || V_Column_End || V_Column_Start || row_tt(e)
+                            .work_day || V_Column_End || V_Column_Start || row_tt(e)
+                            .log_process || V_Column_End || V_Column_Start || row_tt(e)
+                            .log_info || V_Column_End || V_Column_Start || row_tt(e)
+                            .dml_rows || V_Column_End || V_Column_Start ||
+                             to_char(row_tt(e).started, 'hh24:mi:ss') ||
+                             V_Column_End || V_Column_Start ||
+                             nvl(to_char(row_tt(e).err_msg),
+                                 to_char(row_tt(e).finished, 'hh24:mi:ss')) ||
+                             V_Column_End || V_Column_Start ||
+                             trunc(((row_tt(e).finished - row_tt(e).started) * 24 * 60 * 60)) ||
+                             V_Column_End || V_ROW_End || GCV_ENDFORM ||
+                             GCV_ENDLINE;*/
+            end loop;
+
+        end loop;
+        P_MESSAGE := P_MESSAGE || v_table_End || GCV_ENDFORM || GCV_ENDLINE;
+        P_MESSAGE := P_MESSAGE || 'Total time (min) = ' ||
+                     round(TOTAL_SEC, 2);
+
+        --DBMS_OUTPUT.PUT_LINE(P_MESSAGE);
+
+        IF fSendMail = 1 THEN
+            ap_it.mail_pkg.send(P_FROM    => EMAIL_ADDRESS_OUT,
+                                P_TO      => EMAIL_MZHUSSIYEV || pMailPerson,
+                                P_SUBJECT => PPROCESS,
+                                P_BODY    => P_MESSAGE);
+        END IF;
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            dbms_output.put_line('ERROR AT:' || sqlerrm() || GCV_ENDFORM ||
+                                 GCV_ENDFORM || 'Err: ' ||
+                                 dbms_utility.format_error_stack || '~' ||
+                                 dbms_utility.format_error_backtrace);
+
+            ap_it.mail_pkg.send(P_FROM    => EMAIL_ADDRESS_OUT,
+                                P_TO      => pMailPerson,
+                                P_SUBJECT => 'ALERT! ORA-' ||
+                                             to_char(sqlcode()) ||
+                                             GCV_ENDFORM || GI_STEP_No || '. ' ||
+                                             AC_action,
+                                P_BODY    => sqlerrm() || GCV_ENDFORM ||
+                                             GCV_ENDFORM || 'Err: ' ||
+                                             dbms_utility.format_error_stack || '~' ||
+                                             dbms_utility.format_error_backtrace);
+    END;
+
+END;

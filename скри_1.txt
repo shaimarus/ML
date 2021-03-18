@@ -1,0 +1,70 @@
+-----------------------за весь период-----------------------------------------
+declare
+a DATE := date'2019-06-01';
+begin
+PKG_MZ_HINTS.pTruncate('T_RS_PSI_CASH_CALL_TMP');
+FOR I IN 0..ABS(TRUNC(MONTHS_BETWEEN(a,SYSDATE))) LOOP
+  
+    insert /*+ append*/
+    into T_RS_PSI_CASH_CALL_TMP
+      SELECT MONTH_,
+             SKP_CLIENT,
+             APP_CNT_M_LAST_CASH,
+             APP_CNT_CASH,
+             COM_CNT_SMS_XS_1M,
+             FCB_CNT_MONTHS_LAST_CLOSE,
+             FCB_CNT_MONTHS_FIRST_OPEN,
+             FCB_AMT_LAST_CRED,
+             FCB_MAX_DUR_OVERDUE,
+             FCB_ACT_AMT_OUTSTANDING,
+             CON_CNT_MB_LAST_1,
+             FCB_ALL_CNT_CASH_12M,
+             FCB_MIN_AMT_9M,
+             CMP_FLAG_EVER_CARD,
+             SD_INCOME_TYPE_CODE,
+             FCB_AVG_DUR_PLAN,
+             FCB_ALL_CNT_POS,
+             COM_MIN_CALL_XS_LENGHT_TLM,
+             APP_CNT_POS_24M,
+             FCB_AVG_DUR_FACT,
+             SD_AGE AGE
+        FROM T_ABT_CASH_DATAMART sample(2.5)
+       WHERE MONTH_ = TO_DATE(ADD_MONTHS(a,I));
+    commit;
+  end loop;
+end;
+-----------------------за посл месяц-----------------------------------------
+declare
+a DATE := date '2020-11-01;
+begin
+--PKG_MZ_HINTS.pTruncate('T_RS_PSI_CASH_CALL_TMP');
+FOR I IN 0..ABS(TRUNC(MONTHS_BETWEEN(a,SYSDATE))) LOOP
+  
+    insert /*+ append*/
+    into T_RS_PSI_CASH_CALL_TMP
+      SELECT MONTH_,
+             SKP_CLIENT,
+             APP_CNT_M_LAST_CASH,
+             APP_CNT_CASH,
+             COM_CNT_SMS_XS_1M,
+             FCB_CNT_MONTHS_LAST_CLOSE,
+             FCB_CNT_MONTHS_FIRST_OPEN,
+             FCB_AMT_LAST_CRED,
+             FCB_MAX_DUR_OVERDUE,
+             FCB_ACT_AMT_OUTSTANDING,
+             CON_CNT_MB_LAST_1,
+             FCB_ALL_CNT_CASH_12M,
+             FCB_MIN_AMT_9M,
+             CMP_FLAG_EVER_CARD,
+             SD_INCOME_TYPE_CODE,
+             FCB_AVG_DUR_PLAN,
+             FCB_ALL_CNT_POS,
+             COM_MIN_CALL_XS_LENGHT_TLM,
+             APP_CNT_POS_24M,
+             FCB_AVG_DUR_FACT,
+             SD_AGE AGE
+        FROM T_ABT_CASH_DATAMART sample(2.5)
+       WHERE MONTH_ = TO_DATE(ADD_MONTHS(a,I));
+    commit;
+  end loop;
+end;

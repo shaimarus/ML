@@ -1,0 +1,24 @@
+CREATE OR REPLACE PACKAGE PKG_ABT_CASH_DATAMART authid current_user is
+
+    DATE_CALC DATE := trunc(sysdate,'MM');
+
+    PROCEDURE P_ABT_Data_Preparation  (date_clc DATE);
+    PROCEDURE P_ABT_PART_1_Soc_Dem    (date_clc DATE);
+    PROCEDURE P_ABT_PART_2_Offer      (date_clc DATE);
+    PROCEDURE P_ABT_PART_3_Application(date_clc DATE);
+    PROCEDURE P_ABT_PART_4_Last_Appl  (date_clc DATE);
+    PROCEDURE P_ABT_PART_5_Last_Contr (date_clc DATE);
+    PROCEDURE P_ABT_PART_6_Contracts  (date_clc DATE);
+    PROCEDURE P_ABT_PART_7_Comm       (date_clc DATE);
+    PROCEDURE P_ABT_PART_8_Appeal     (date_clc DATE);
+    PROCEDURE P_ABT_PART_9_Deposit    (date_clc DATE);
+    PROCEDURE P_ABT_PART_10_Mapp      (date_clc DATE);
+    PROCEDURE P_ABT_PART_11_Payments  (date_clc DATE);
+    PROCEDURE P_ABT_PART_12_1_FCB       (date_clc DATE);
+    PROCEDURE P_ABT_PART_12_2_FCB       (date_clc DATE);
+    PROCEDURE P_ABT_PART_13_RISK       (date_clc DATE);
+    PROCEDURE P_ABT_Cash_DataMart    (date_clc DATE );
+    PROCEDURE P_MAIN                  (date_clc DATE );
+
+
+END;

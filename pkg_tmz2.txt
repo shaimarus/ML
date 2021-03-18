@@ -1,0 +1,111 @@
+CREATE OR REPLACE PACKAGE PKG_MZ_HINTS IS
+
+    -- Author  : MZHUSSIYEV
+    -- Created : 10.06.2017 17:59:59
+    -- Purpose : USEFUL PROCEDURES FOR LOGGING AND OPTIMISATION
+
+    ---------------------------------------------------
+    -- variables
+    SUBTYPE GST_ORA_NAME IS VARCHAR2(30);
+    SUBTYPE GST_MAX_SQL_STR IS VARCHAR2(4000);
+    SUBTYPE GST_MAX_PLS_STR IS VARCHAR2(32000);
+    TYPE GT_MVIEW_NAME IS TABLE OF VARCHAR2(64);
+    TYPE GT_MVIEW_NAME2 IS TABLE OF VARCHAR2(64) INDEX BY BINARY_INTEGER;
+
+    GCV_FMT_STEP   CONSTANT VARCHAR2(10) := '0000';
+    GCV_FMT_ROWS   CONSTANT VARCHAR2(15) := '9999,999,990';
+    GCV_FMT_DATE   CONSTANT VARCHAR2(25) := 'HH24:Mi:SS';
+    GCI_LEN_ROWS   CONSTANT INTEGER := 20;
+    GCI_LEN_ACTION CONSTANT INTEGER := 30;
+    GCV_ENDLINE    CONSTANT VARCHAR2(4) := CHR(13) || CHR(10);
+    GCV_ENDFORM    CONSTANT VARCHAR2(4) := '<BR>';
+    GI_STEP_No      INTEGER := 0;
+    GD_ACTION_START DATE;
+    GD_STEP_START   DATE;
+    
+        v_table_Start  VARCHAR2(20) := '<table border="1">';
+        v_table_End    VARCHAR2(10) := '</table>';
+        V_ROW_Start    VARCHAR2(10) := '<TR>';
+        V_ROW_End      VARCHAR2(10) := '</TR>';
+        V_Column_Start VARCHAR2(10) := '<Th>';
+        V_Column_End   VARCHAR2(10) := '</Th>';
+
+    AC_MODULE         GST_ORA_NAME := 'ZHUSSIYEV';
+    AC_ACTION         GST_MAX_SQL_STR := 'INIT';
+    EMAIL_MZHUSSIYEV  GST_MAX_SQL_STR := 'ZHUSSIYEV MEDEU <MZhussiyev@Homecredit.kz>;';
+    EMAIL_ATOBATAYEV  GST_MAX_SQL_STR := 'TOBATAEV Arslan <ATobataev@Homecredit.kz>;';
+    EMAIL_ADDRESS_OUT GST_MAX_SQL_STR := 'REPORT RESULTS <PKG_MZ_HINTS_pMail@Homecredit.kz>;';
+
+    ---------------------------------------------------
+    -- procedures
+    PROCEDURE pAppInfo(acAction VARCHAR2,
+                       acModule VARCHAR2 DEFAULT AC_MODULE);
+    --                      
+    PROCEDURE pAppAction(acAction VARCHAR2);
+    --
+    PROCEDURE pAppclient(acClientInfo VARCHAR2);
+    --
+    PROCEDURE pStats(acTable    GST_ORA_NAME,
+                     acOwner    GST_ORA_NAME DEFAULT User,
+                     anPercents NUMBER DEFAULT 0.000001,
+                     anDegree   NUMBER DEFAULT 4,
+                     anPartName VARCHAR2 DEFAULT null);
+                     
+    PROCEDURE pStatsPartTab(acTable       GST_ORA_NAME,
+                            acOwner       GST_ORA_NAME DEFAULT User,
+                            anPercents    NUMBER DEFAULT 0.02,
+                            anDegree      NUMBER DEFAULT 4,
+                            anCntPartLast NUMBER DEFAULT 3,
+                            anGranularity VARCHAR2 DEFAULT 'PARTITION');
+    --                      
+    PROCEDURE pExec(acExecute VARCHAR2);
+    --
+    PROCEDURE pMerge(V_JOIN_KEY IN VARCHAR2, V_TABLE_NAME IN VARCHAR2);
+    --
+    PROCEDURE pCompileObjects;
+    --
+    PROCEDURE pConsole(acConsole VARCHAR2);
+    --
+    PROCEDURE pTruncate(acTable GST_ORA_NAME,
+                        acOwner GST_ORA_NAME DEFAULT User);
+    --
+    PROCEDURE pAlterSession(anDegree INTEGER DEFAULT 1);
+    --
+    FUNCTION fnGetSeconds(adStartTime DATE) RETURN NUMBER;
+    --
+    FUNCTION fcGetSeconds(adStartTime DATE) RETURN VARCHAR2;
+    --
+    PROCEDURE pIndex(indexName  GST_ORA_NAME,
+                     acOwner    GST_ORA_NAME DEFAULT User,
+                     set_Usable  number default 1);
+    --
+    PROCEDURE pGrant(TableName  GST_ORA_NAME,
+                     Grant_To   GST_ORA_NAME DEFAULT 'CRM',
+                     Grant_Type GST_ORA_NAME DEFAULT 'S');
+    --                 
+    PROCEDURE pStepStart(anStepNo INTEGER DEFAULT NULL,
+                         acAction VARCHAR2 DEFAULT Null,
+                         acModule VARCHAR2 DEFAULT NULL);
+    --
+    PROCEDURE pStepEnd(anRowsResult INTEGER DEFAULT Null,
+                       acTable      VARCHAR2 DEFAULT Null,
+                       adStart      DATE DEFAULT Null,
+                       isFinish     NUMBER DEFAULT 0,
+                       calcStats    NUMBER DEFAULT 1);
+    --
+    PROCEDURE pStepErr(fnEmailSend number default 0,
+                       AcModule    varchar2 default null,
+                       pMailPerson varchar2 default EMAIL_MZHUSSIYEV);
+    --
+    PROCEDURE pGttCreate(p_tab_name VARCHAR2, p_sql IN VARCHAR2);
+    --
+    PROCEDURE pMviewRefresh(acMview GST_ORA_NAME);
+    --
+    --PROCEDURE pJobKiller(owner GST_ORA_NAME default user);
+    --
+    PROCEDURE pMail(pSubjects   GT_MVIEW_NAME2,
+                    pProcess    varchar2 default 'REPORT RESULT',
+                    fSendMail   number default 0,
+                    pMailPerson varchar2 default EMAIL_MZHUSSIYEV);
+
+END;

@@ -1,0 +1,17 @@
+CREATE OR REPLACE PACKAGE PKG_ABT_CARD_DATAMART authid current_user is
+
+    DATE_CALC DATE := trunc(sysdate,'MM');
+
+    PROCEDURE P_ABT_CARD_ALL_TRX  (date_clc DATE default trunc(sysdate, 'mm'));
+    PROCEDURE P_ABT_CARD_MCC_TRX  (date_clc DATE default trunc(sysdate, 'mm'));
+    PROCEDURE P_ABT_CARD_CREDIT_INFO    (date_clc DATE default trunc(sysdate, 'mm'));
+   
+    
+    PROCEDURE P_ABT_CARD_DataMart     (date_clc DATE );
+    PROCEDURE P_MAIN                  (date_clc DATE );
+    
+    procedure p_run_proc (ip_start in number, ip_end in number);
+    PROCEDURE P_MAIN_PARALLEL_EXEC;
+
+
+END;
