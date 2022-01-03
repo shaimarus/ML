@@ -1,0 +1,61 @@
+#conda install jupyter
+#conda install nb_conda
+#conda install ipykernel
+#python -m ipykernel install --user --name mykernel
+
+
+
+1.Создаем папку там где много свободного места (F:\Python_env\Project_name_py37) можно и не создавать папку
+2.Создаем среду
+
+conda create --prefix F:/Python_env/Project_name_v1_py37 python=3.7
+
+conda activate F:/Python_env/Project_name_v1_py37
+conda install ipykernel
+ipython kernel install --user --name=Project_name_v1_py37
+
+conda deactivate F:/Python_env/Project_name_v1_py37
+
+
+
+conda create --prefix F:/Python_env/airflow-mlflow-tutorial python=3.8 
+conda activate F:/Python_env/airflow-mlflow-tutorial
+conda install ipykernel
+ipython kernel install --user --name=airflow-mlflow-tutorial
+
+
+Удаление иконки(предварительно удалить сами файлы вручную через rm)
+jupyter kernelspec list
+jupyter kernelspec remove project_name_v11_py37 
+
+
+
+
+
+
+
+conda create --prefix C:\Users\shaim\PYTHON_MAIN\recsys\recsys_env python=3.8.5
+
+conda activate C:\Users\shaim\PYTHON_MAIN\recsys\recsys_env
+conda install ipykernel
+ipython kernel install --user --name=recsys_test_env2
+jupyter kernelspec remove recsys_test_env2
+conda deactivate C:\Users\shaim\PYTHON_MAIN\recsys\recsys_env
+
+
+conda install -c conda-forge lightfm==1.16
+
+
+установка линукс
+https://comp-security.net/%D0%BA%D0%B0%D0%BA-%D1%81%D0%B4%D0%B5%D0%BB%D0%B0%D1%82%D1%8C-virtualbox-%D0%BD%D0%B0-%D0%B2%D0%B5%D1%81%D1%8C-%D1%8D%D0%BA%D1%80%D0%B0%D0%BD/
+
+https://software-expert.ru/2015/02/16/virtualbox-menu-missing/
+
+
+https://repo.anaconda.com/archive/Anaconda3-2021.11-Linux-x86_64.sh
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-jupyter-notebook-with-python-3-on-ubuntu-20-04-and-connect-via-ssh-tunneling-ru
+
+
+
+
