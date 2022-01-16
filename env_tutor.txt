@@ -1,0 +1,332 @@
+#conda install jupyter
+#conda install nb_conda
+#conda install ipykernel
+#python -m ipykernel install --user --name mykernel
+
+
+
+1.Создаем папку там где много свободного места (F:\Python_env\Project_name_py37) можно и не создавать папку
+2.Создаем среду
+
+conda create --prefix F:/Python_env/Project_name_v1_py37 python=3.7
+
+conda activate F:/Python_env/Project_name_v1_py37
+conda install ipykernel
+ipython kernel install --user --name=Project_name_v1_py37
+
+conda deactivate F:/Python_env/Project_name_v1_py37
+
+
+
+conda create --prefix F:/Python_env/airflow-mlflow-tutorial python=3.8 
+conda activate F:/Python_env/airflow-mlflow-tutorial
+conda install ipykernel
+ipython kernel install --user --name=airflow-mlflow-tutorial
+
+
+Удаление иконки(предварительно удалить сами файлы вручную через rm)
+jupyter kernelspec list
+jupyter kernelspec remove project_name_v11_py37 
+
+
+
+
+
+
+
+conda create --prefix C:\Users\shaim\PYTHON_MAIN\recsys\recsys_env python=3.8.5
+
+conda activate C:\Users\shaim\PYTHON_MAIN\recsys\recsys_env
+conda install ipykernel
+ipython kernel install --user --name=recsys_test_env2
+jupyter kernelspec remove recsys_test_env2
+conda deactivate C:\Users\shaim\PYTHON_MAIN\recsys\recsys_env
+
+
+conda install -c conda-forge lightfm==1.16
+
+
+установка линукс
+https://comp-security.net/%D0%BA%D0%B0%D0%BA-%D1%81%D0%B4%D0%B5%D0%BB%D0%B0%D1%82%D1%8C-virtualbox-%D0%BD%D0%B0-%D0%B2%D0%B5%D1%81%D1%8C-%D1%8D%D0%BA%D1%80%D0%B0%D0%BD/
+
+https://software-expert.ru/2015/02/16/virtualbox-menu-missing/
+
+
+https://repo.anaconda.com/archive/Anaconda3-2021.11-Linux-x86_64.sh
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-jupyter-notebook-with-python-3-on-ubuntu-20-04-and-connect-via-ssh-tunneling-ru
+
+jupyter kernelspec remove C:\ProgramData\jupyter\kernels\recsys_test_env2
+
+
+
+
+
+
+python -m venv C:\Users\shaim\PYTHON_MAIN\recsys\recsys_env
+
+
+C:\Users\shaim\PYTHON_MAIN\recsys\recsys_env\Scripts\activate.bat
+python -m pip install --upgrade pip
+pip install ipykernel
+python -m ipykernel install --name=recsys_test_env3
+ipython kernel install --user --name=recsys_test_env2
+
+
+
+
+---------------------------------------------------------------------------------
+
+
+install centos7 (подкл инета вопрос не решился, возможно также надо апдейтнуть!!! проверЕНО)
+https://www.youtube.com/watch?v=9hKO1uZdExQ&ab_channel=IPCoreNetworks
+
+какой-то непонятный баг есть если ставить большие cpu/ram то virtualbox отказывается запускатьтся (хотя до этого запускался)
+
+
+resize disk (current)
+https://www.youtube.com/watch?v=jpMaTnnmcyI&ab_channel=JoeCollins
+add hard disk
+https://www.youtube.com/watch?v=jZVs-SInMBU&ab_channel=LinuxTechSchool
+
+centoscentoscentoscentoscentoscentos
+https://www.youtube.com/watch?v=3taTCyPE0mI&ab_channel=BiswajeetBasumatary
+-        -       -        -     - -        -       -        -     --        -       -        -     -
+если потерялся добавленный диск и проблемы с docker
+сделать mount /dev/sdb1 /mnt/test
+
+systemctl stop docker
+ps aux | grep -i docker | grep -v grep
+systemctl daemon-reload
+systemctl start docker
+docker info
+docker images
+-        -       -        -     - -        -       -        -     --        -       -        -     -
+установка докера
+https://www.youtube.com/watch?v=I18TNwZ2Nqg&t=14s&ab_channel=ADV-IT
+
+https://github.com/adv4000/docker/blob/master/DOCKER%20COMMANDS.txt
+
+Устанавливаем убунту(можно как сентос7 или как у веселого чувака) и делаем АПДЕЙТ софта и после этого появится инет!!
+
+Denis Dukuz Konieiev
+2 года назад (изменено)
+ @Elvis Presley  вот эти ребята 
+1) https://www.youtube.com/playlist?list=PLD5U-C5KK50XMCBkY0U-NLzglcRHzOwAg
+2) https://www.youtube.com/channel/UCemtVTjKhD_GcEOQ_rNOrRw
+
+
+Подключение WinSCP
+SCP (enp0s3) надо как в видео выбрать сетевой адаптер (тогда поменяется ip и его подклчим через SCP) выбираем то через чего компы соединяются! (по wifi/ethernet)
+https://www.youtube.com/watch?v=7M2SYYE5Z1g&ab_channel=KludgeBot
+
+
+Ctrl-Alt-t	Open a new Terminal
+
+
+-----------------------------------------------
+Install Docker on Ubuntu 18.04
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```
+sudo apt update
+sudo apt install apt-transport-https
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt update
+sudo apt install docker-ce
+sudo systemctl status docker
+sudo usermod -aG docker $USER
+>>>logout/login<<<
+```
+
+docker run hello-world
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+docker ps
+docker ps -a
+docker images
+
+Удаление всех контейнеров, из которых выполнен выход
+docker rm $(docker ps -a -f status=exited -q)
+
+docker run -it --rm -v /dev/shm/PYTHON_MAIN:/home python:3.8.8 bash
+-it чтобы видеть итератинво процесс
+--rm удалить образ после того как закроется (хотя для юпитера может надо убрать)
+-v путь там где в системе эта папка будет как домашняя директория
+
+
+
+docker search tomcat
+docker pull tomcat
+docker run -it -p 1234:8080 tomcat
+
+
+
+
+sudo apt install docker-compose
+sudo docker-compose -v
+
+МОЖНО ПРОСТО КОПИРНУТЬ И СДЕЛАТЬ БЕЗ SSH в гите(это больше если гитом пользуемся чтобы обратно надо новый код поменять нам пока так не надо)
+Если видим в гитлаб репозитории .yml (.etc) то закачиваем в папку этот репозитории через установленный git
+
+git clone ссылка name_folder
+
+далее переходим в папку name_folder 
+
+sudo docker-compose up --build -d
+
+
+
+хз проверить с этими гитами
+git checkout start
+
+(на линии start в гите)
+
+--------------------------------------------------------------------------
+ПРОКСИ для ДОКЕРА (на официальном сайте)
+
+https://docs.docker.com/config/daemon/systemd/#httphttps-proxy
+
+
+--------------------------------------------------------------------------
+Установка докер компоуз
+
+https://itdraft.ru/2020/04/10/ustanovka-docker-compose-v-centos-7/
+df
+Установка Docker Compose, способ №2
+Скачиваем docker-compose в каталог /usr/local/bin/
+
+$ sudo curl -L "https://github.com/docker/compose/releases/download/1.25.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+Делаем файл исполняемым и создаем симлинк
+
+$ sudo chmod +x /usr/local/bin/docker-compose
+$ sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+
+обязаон sudo systemctl start docker
+
+--------------------------------------------------------------------------
+
+сортировка
+du -h --max-depth=2 /dev/shm 
+
+du -h --max-depth=2 /dev/shm | sort -nr
+
+sudo du -m --max-depth=1 /home | sort -n
+
+-m в мегабайтах
+-h в гигаб
+-k в килобайтах
+
+sort -n (как есь) -nr (в обратно порядке сортировка)
+--------------------------------------------------------------------------
+изменение экрана
+xrandr
+
+номер 2 например
+
+и далее выбираем нужный через xrandr -s 2
+
+
+--------------------------------------------------------------------------
+УСТАНОВКА ДРУГОЙ ПАМЯТИ ЖЕСТКОГО ДИСКА ДЛЯ ДОКЕРА
+
+https://stackoverflow.com/questions/30604846/docker-error-no-space-left-on-device
+
+
+18
+
+I also encountered this issue on RHEL machine. I did not find any apt solution anywhere on stack-overflow and docker-hub community. If you are facing this issue even after below command:
+
+docker system prune --all
+
+The solution which worked finally:
+
+docker info
+To check current docker storage driver
+Mine was : Storage Driver: devicemapper; If you have storage driver as overlay2 nothing to worry about. Solution will still work for you.
+df -h
+This is to check the available file systems on machine and the path where they are mounted. Two mounted path to have a note:
+/dev/mapper/rootvg-var 7.6G 1.2G 6.1G 16% /var
+/dev/mapper/rootvg-apps 60G 9.2G 48G 17% /apps
+Note- By default docker storage path is /var/lib/docker. It has available space ~6 GB and hence all the space related issues. So basically, I have to move default storage to some other storage where available space is more. For me its File sysyem path '/dev/mapper/rootvg-apps' which is mounted on /apps. Now task is to move /var/lib/docker to something like /apps/newdocker/docker.
+mkdir /apps/newdocker/docker
+chmod -R 777 /apps/newdocker/docker
+Update docker.serive file on linux which resides under: /usr/lib/systemd/system
+vi /usr/lib/systemd/system/docker.service
+if storage device is devicemapper , comment existing ExecStart line and add below under [Service]:
+ExecStart=
+ExecStart=/usr/bin/dockerd -s devicemapper --storage-opt dm.fs=xfs --storage-opt dm.basesize=40GB -g /apps/newdocker/docker --exec-opt native.cgroupdriver=cgroupfs
+Or if storage device is overlay2:
+just add -g /apps/newdocker/docker in the existing ExexStart statement.
+Something like ExecStart=/usr/bin/dockerd -g /apps/newdocker/docker -H fd:// --containerd=/run/containerd/containerd.sock
+rm -rf /var/lib/docker (It will delete all existing docker data)
+systemctl stop docker
+ps aux | grep -i docker | grep -v grep
+If no output has been produced by the above command, reload systemd daemon by below command.
+systemctl daemon-reload
+systemctl start docker
+docker info
+Check out the Data Space Available: 62.15GB after mouting to docker to new File system.
+DONE
+
+shm/pyt
+
+--------------------------------------------------------------------------
+Установка Pip на CentOS 7
+https://andreyex.ru/centos-7/kak-ustanovit-pip-na-centos-7/
+
+хотя он в конде есть просто надо его в енв закинуть
+в sudo vi ~/.bashrc
+
+export PATH=/mnt/test/new_anaconda/anaconda3/bin:$PATH
+
+--------------------------------------------------------------------------
+
+все библиотеки в анаконде устанавливаются в /mnt/test/new_anaconda/anaconda3/lib/python3.9/site-packages
+интерпретатор python3 нах-ся /mnt/test/new_anaconda/anaconda3/bin
+--------------------------------------------------------------------------
+по хорошему надо обновить pip (т.к. возможно не будет target)
+pip install --upgrade pip
+
+
+вроде работает и без pythonpath
+export PYTHONPATH=/dev/shm/python_pkgs_new:$PYTHONPATH
+
+pip3 install --target=/dev/shm/python_pkgs_new scrapy
+
+путь там где лежит кэш для пипа
+pip3 cache dir
+
+удаляем кэш
+pip3 cache purge
+
+ну или сразу же закачиваем без кеша и сразу в другую папку
+pip3 install --no-cache-dir --target=/dev/shm/python_pkgs_new scrapy
+--------------------------------------------------------------------------
+
+Basic
+Запуск lightfm
+
+docker run -it -p 8888:8888 lightfm-master_lightfm:latest bash
+cd /home/lightfm/example/movielens
+jupyter notebook --ip 0.0.0.0 --port 8888 --allow-root
+
+в документации
+docker-compose run --service-ports lightfm jupyter notebook lightfm/examples/movielens/example.ipynb --allow-root --ip="0.0.0.0" --port=8888 --no-browser
+
+-------------------------------------------------------------------------------
+
+выгрузка библиотек для установки в другую среду
+python -m pip freeze > requirements.txt
+
+python -m pip freeze | grep == > requirements.txt    (иначе всякие непонятные библиотеки)
+
+установка
+python -m pip install -r requirements.txt
+
+-------------------------------------------------------------------------------
+
+
+ssh -L 8000:localhost:1234 shaima@192.168.31.164
+
