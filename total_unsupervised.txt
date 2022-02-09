@@ -1,0 +1,233 @@
+ПОНИЖЕНИЕ РАЗМЕРНОСТИ PCA,SVD,FastICA,NMF,MDS,T-SNE,UMAP НАВЕРНОЕ В БОЛЬШЕЙ СТЕПЕНИ НУЖНО ДЛЯ ВИЗУАЛИЗАЦИИ т.е. в ДАЛЬНЕЙШЕМ ВИЗУАЛИЗАЦИИ КОЛ-ВО КЛАСТЕРОВ(но могут и в действ показать важные признаки)
+
+Понижение размерности. Задача когда имеется очень много признаков(факторов/фичей/итд) и надо выбрать самые важные 
+
+Описанные ниже методы позволяют выделить.
+В задаче из 18 строк(столько тока данных), выбирают 5/10/18 компонент (кол-во компонент не может быть больше чем кол-во строк(данных))
+
+В коде суммируют все коэффициенты по каждому компоненту (т.е. для случаев 5/10/18) какбе усредняют по 5/10/18. 
+НО(ХОТЯ НЕ ФАКТ НАДО ПОДУМАТЬ ВОЗМОЖНО ДЛЯ ОБЛЕГЧ ВАРИАНТА МОЖНО) наверное лучше взять 95% диссперсия(или лучше посмотреть на график) и определить одну компоненту и для него выбрать максимальные(упорядочные) 5 или 10 (сколько захотим или лучше по графику коэфф падают)
+
+ВЕЗДЕ НОРМИРУЕМ КАЖДЫЙ ПРИЗНАК!!! data = pd.DataFrame(MinMaxScaler().fit_transform(data))
+
+
+08 Практикум_ Выделение факторов с помощью матриц
+
+
+Линейные методы
+1.PCA (001 Метод главных компонент)
+
+2.TruncatedSVD(002 Сингулярное разложение)
+
+3.FastICA(003 Независимые компоненты)
+
+4.NMF(004 Матричная факторизация)
+
+
+Нелинейные методы по уменьшению размерности Хотя в большей степени пересекаются с задачей КЛАСТЕРИЗАЦИИ
+
+
+10 Практикум_ Стабилизация выделения факторов
+
+
+1.Многомерное шкалирование (manifold.MDS)
+Яркий пример расстояние между городами каждый с каждым(представлена матричная таблица) и она переводится в карту где РАССТОЯНИЕ СОХРАНЯЕТСЯ!!!
+
+подбираем гиперпараметр n_init по наименьшему стрессу
+
+2.T-SNE (есть sklearn manifold)
+Гиперпараметр perplexity
+также зависит от random_state
+Расстояние кульбака лейбла уменьшаем
+
+
+3.UMAP (надо устанавливать), типа лучше T-SNE
+гиперпарамет n_neighbor (min_dist по сути для визуализации расстоянии между точками)
+Здесь нет метрики качества(как в тсне кульбака) смотрим визуализацию
+
+
+
+Практическое решение задачи kaggle 
+
+Случайное ансамблирование
+чемпионшип по признакам устраивается(детальный код надо разобрать)
+
+
+Делаем уменьшенеи размерности по вышеуказанным методом (PCA,SVD,FastICA,NMF,MDS,T-SNE,UMAP и случайное ансамблирование)
+
+
+Берем 5 признаков по какому-то из методов( случайное ансамл)
+собираем RFE 100 штук (n_estim=50 дерев)
+cобираем 100 штук ExtraTreeesRegresser
+cобираем 100 штук CAtboostRegressor
+
+Предиктим
+Полученные 300 прогнозов потом усредняем (prediction/300)
+и делаем обратный min_max_scaler
+
+
+Типа ансамбль над ансамблем! (выше перечисленные по 8 методам выбираем и также делаем т.е. 8*300 моделей усредним!!)
+
+
+
+--------------------------------------------------------------------------------
+ОБЩИЙ СМЫСЛ ТАКОЙ БЕРЕМ ОДИН ИЗ НИЖЕОПИСАННЫХ МЕТОДОВ И ОПТИМИЗИРУЕМ МЕТРИКУ (ГИПЕР ПАРАМЕТРЫ) ДЛЯ ОПРЕДЕЛЕНИЯ КОЛ-ВО КЛАСТЕРОВ 
+
+класстеризация
+12 Практикум_ Кластеризация объявлений
+004 Выделение факторов.mp4
+
+Feature selection просто через корреляцию (через r2>0.01) параметры наиболее коррелирующие, 
+
+
+12 Практикум_ Кластеризация объявлений
+005 K-средних.mp4
+006 Агломеративная кластеризация
+007 GMM
+
+008 Метрики кластеризации.mp4  (по этим метрикам оптимизируем!)
+
+001 DBSCAN.mp4
+002 HDBSCAN.mp4
+003 OPTICS.mp4
+004 Affinity Propagation.mp4 (мощный метод но требовательный к оперативной памяти! 20 000 на 20 000 с трудом сможет, но 350 тыс строк не сможет! непонятно какая память была в расчетах) 
+005 Самоорганизующиеся карты Кохонена.mp4 (быстро считаются
+006 Спектральная кластеризация.mp4 (мощный но очень требователне к памяти!)
+
+----------------------------------------------------------------------------------------
+ПОИСК АНОМАЛИИ
+ВООБЩЕ ПРЕДПОЛАГАЕТСЯ ЧТО МЫ УДАЛЯЕМ АНОМАЛИИ И НА ОСТАЛЬНЫХ ДАННЫХ СТРОИМ НОРМАЛЬНУЮ КЛАСТЕРИЗАЦИЮ
+
+ПРЕДЛАГАЮТ СДЕЛАТЬ НЕСКОЛЬКО НИЖЕОПИСАННЫЕ МЕТОДЫ И ЕСЛИ ПО МНОГИМ МЕТОДАМ ДАННЫЕ АНОМАЛЬНЫЕ ТО В ДЕЙСТВИТЕЛЬНОСТИ ДОПУСКАЕМ ЧТО ОНИ АНОМАЛЬНЫЕ
+
+001 Статистические выбросы.mp4 (тест грабса-смирнова, работает очевидно на числовых призанкках)
+библиотека outliers
+standardscaler() лучше чем минмакс
+
+002 Эллипсоидальная аппроксимация
+003 LOF.mp4
+004 ABOD.mp4
+005 COPOD.mp4
+006 iForest.mp4
+
+
+----------------------------------------------------------------------------------------------
+
+
+
+028 -
+https://video.ittensive.com/machine-learning/ML201%20Ожидаемая%20продолжительность%20жизни.ipynb
+
+029 -
+https://video.ittensive.com/machine-learning/ML202%20Заполнение%20пропусков%20экстраполяцией.ipynb
+
+030 -
+https://video.ittensive.com/machine-learning/ML203%20Согласованность%20данных.ipynb
+
+031 -
+https://video.ittensive.com/machine-learning/ML204%20Корреляция%20данных.ipynb
+
+032 -
+https://video.ittensive.com/machine-learning/ML205%20Важность%20признаков.ipynb
+
+
+
+037 -
+https://video.ittensive.com/machine-learning/ML207%20Метод%20главных%20компонент.ipynb
+
+038 -
+https://video.ittensive.com/machine-learning/ML208%20Сингулярное%20разложение.ipynb
+
+039 -
+https://video.ittensive.com/machine-learning/ML209%20Независимые%20компоненты.ipynb
+
+040 -
+https://video.ittensive.com/machine-learning/ML210%20Матричная%20факторизация.ipynb
+
+
+
+046 -
+https://video.ittensive.com/machine-learning/ML212%20MDS.ipynb
+
+047 -
+https://video.ittensive.com/machine-learning/ML213%20t-SNE.ipynb
+
+048 -
+https://video.ittensive.com/machine-learning/ML214%20UMAP.ipynb
+
+049 -
+https://video.ittensive.com/machine-learning/ML215%20Случайный%20ансамбль.ipynb
+
+050 -
+https://video.ittensive.com/machine-learning/ML216%20Регрессия%20по%20значимым%20факторам.ipynb
+
+
+
+057 -
+https://video.ittensive.com/machine-learning/ML220%20Прогноз%20срока%20экспозиции%20объявления.ipynb
+
+058 -
+https://video.ittensive.com/machine-learning/ML221%20Очистка%20и%20предобработка%20данных.ipynb
+
+059 -
+https://video.ittensive.com/machine-learning/ML222%20Обогащение%20данных.ipynb
+
+060 -
+https://video.ittensive.com/machine-learning/ML223%20Выделение%20факторов.ipynb
+
+061 -
+https://video.ittensive.com/machine-learning/ML224%20К-средних.ipynb
+
+062 -
+https://video.ittensive.com/machine-learning/ML225%20Агломеративная%20кластеризация.ipynb
+
+063 -
+https://video.ittensive.com/machine-learning/ML226%20GMM.ipynb
+
+064 -
+https://video.ittensive.com/machine-learning/ML227%20Метрики%20кластеризации.ipynb
+
+
+073 -
+https://video.ittensive.com/machine-learning/ML229%20DBSCAN.ipynb
+
+074 -
+https://video.ittensive.com/machine-learning/ML245%20HDBSCAN.ipynb
+
+075 -
+https://video.ittensive.com/machine-learning/ML230%20OPTICS.ipynb
+
+076 -
+https://video.ittensive.com/machine-learning/ML231%20Affinity%20Propagation.ipynb
+
+077 -
+https://video.ittensive.com/machine-learning/ML232%20SOM.ipynb
+
+078 -
+https://video.ittensive.com/machine-learning/ML234%20Спектральная%20кластеризация.ipynb
+
+079 -
+https://video.ittensive.com/machine-learning/ML235%20Классификация%20через%20кластеры.ipynb
+
+
+
+090 -
+https://video.ittensive.com/machine-learning/ML237%20Статистические%20выбросы.ipynb
+
+091 -
+https://video.ittensive.com/machine-learning/ML238%20Эллипсоидальная%20аппроксимация.ipynb
+
+092 -
+https://video.ittensive.com/machine-learning/ML239%20LOF.ipynb
+
+093 -
+https://video.ittensive.com/machine-learning/ML240%20ABOD.ipynb
+
+094 -
+https://video.ittensive.com/machine-learning/ML241%20COPOD.ipynb
+
+095 -
+https://video.ittensive.com/machine-learning/ML242%20iForest.ipynb
+
+096 -
+https://video.ittensive.com/machine-learning/ML243%20Восстановление%20данных.ipynb
